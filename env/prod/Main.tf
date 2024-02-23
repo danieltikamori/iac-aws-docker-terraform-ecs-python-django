@@ -5,4 +5,6 @@ module "prod" {
 
   environment = "prod"
 
+  IAMRole = "prod" # After creating the variable, use the name of the variable in this field. This will create an AWS IAM role with that specific name and attach it to the ECS service.
+
 }

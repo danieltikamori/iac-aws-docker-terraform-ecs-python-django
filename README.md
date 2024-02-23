@@ -385,9 +385,11 @@ module "vpc" {
 }
 ```
 
-## Configure Security groups
+## Security components
 
-### Configure public subnet security group
+### Configure Security groups
+
+#### Configure public subnet security group
 
 See: https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/security_group
 
@@ -430,7 +432,7 @@ resource "aws_security_group_rule" "tcp_alb" {
 }
 ```
 
-### Configure private subnet security group
+#### Configure private subnet security group
 
 In the same `SecurityGroup.tf` file, add the following:
 
@@ -463,3 +465,85 @@ resource "aws_security_group_rule" "egress_ECS" {
   security_group_id = aws_security_group.privatenet.id # The ID of the security group to authorize access to.
 }
 ```
+
+### Configuring IAM
+
+See: https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role,
+https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role_policy and
+https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_instance_profile
+
+At infra/, create the `IAM.tf` file:
+
+```terraform
+resource "aws_iam_role" "environment_role" {
+  name = "${var.IAMRole}_role" # Note: also initialize the IAMRole variable at variables.tf file to make it work.
+
+  # Terraform's "jsonencode" function converts a
+  # Terraform expression result to valid JSON syntax.
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Sid    = ""
+        Principal = {
+          Service = ["ec2.amazonaws.com",
+                     "ecs-tasks.amazonaws.com"]
+        }
+      },
+    ]
+  })
+
+  # tags = {
+  #   tag-key = "tag-value"
+  # }
+}
+
+resource "aws_iam_role_policy" "ecs_ecr" {
+  name = "ecs_ecr"
+  role = aws_iam_role.environment_role.id
+
+  # Terraform's "jsonencode" function converts a
+  # Terraform expression result to valid JSON syntax.
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = [
+          "ecr:GetAuthorizationToken", # For ECR authentication
+          "ecr:BatchCheckLayerAvailability", # Check layer availability of docker images
+          "ecr:GetDownloadUrlForLayer", # Get url of docker image to download and utilize it
+          "ecr:BatchGetImage", # Get image
+          "logs:CreateLogStream", # Create logs
+          "logs:PutLogEvents", # Create log events
+        ]
+        Effect   = "Allow"
+        Resource = "*"
+      },
+    ]
+  })
+}
+
+resource "aws_iam_instance_profile" "profile" {
+  name = "${var.IAMRole}_profile"
+  role = aws_iam_role.environment_role.name
+}
+```
+
+Initialize the variable declared at `IAM.tf`:
+
+At `variables.tf`, add the following:
+
+```terraform
+variable "IAMRole" { # Then go to Main.tf in the environments and use this variable.
+  type = string
+}
+```
+
+Then go to the environments `Main.tf` files and add the following inside the module:
+
+```terraform
+IAMRole = "prod" # After creating the variable, use the name of the variable in this field. This will create an AWS IAM role with that specific name and attach it to the ECS service.
+```
+
