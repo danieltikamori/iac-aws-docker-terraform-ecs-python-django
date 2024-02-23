@@ -9,7 +9,7 @@ resource "aws_security_group" "alb" {
   # }
 }
 
-resource "aws_security_group_rule" "tcp_alb" {
+resource "aws_security_group_rule" "ingress_alb" {
   type              = "ingress"
   from_port         = 8000 # Ports allowed to access the ALB
   to_port           = 8000
@@ -18,7 +18,7 @@ resource "aws_security_group_rule" "tcp_alb" {
   # ipv6_cidr_blocks  = [aws_vpc.example.ipv6_cidr_block]
   security_group_id = aws_security_group.alb.id # The ID of the security group to authorize access to.
 }
-resource "aws_security_group_rule" "tcp_alb" {
+resource "aws_security_group_rule" "egress_alb" {
   type              = "egress"
   from_port         = 0 # Ports allowed to respond
   to_port           = 0
