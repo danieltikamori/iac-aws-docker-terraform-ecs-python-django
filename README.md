@@ -309,7 +309,6 @@ Error saving credentials: error storing credentials - err: exec: "docker-credent
 executable file not found in $PATH, out: ``
 which may occur when pulling docker images from a repository.
 
-
 #### Run docker images and push them to the ECR
 
 To see the list of the Docker images available on your system, you can use the following command:
@@ -359,3 +358,29 @@ docker push 646456456452.dkr.ecr.us-west-2.amazonaws.com/production:v1
 Wait until the process is finished; it may take a few minutes to complete. You should now have an image in ECR that corresponds to your locally
 built Docker image.
 
+## Create ECS VPC
+
+See: https://registry.terraform.io/modules/terraform-aws-modules/vpc/aws/latest
+
+At infra/, create a new file named `VPC.tf`:
+
+```terraform
+module "vpc" {
+  source = "terraform-aws-modules/vpc/aws"
+
+  name = "VPC-ECS" # Choose appropriate name
+  cidr = "10.0.0.0/16" # 10.0.1.1 - 10.0.255.255
+
+  azs             = ["us-west-2a", "us-west-2b", "us-west-2c"] # Choose AZs according to your needs
+  private_subnets = ["10.0.1.0/24", "10.0.2.0/24", "10.0.3.0/24"] # Choose private subnet CIDRs accordingly
+  public_subnets  = ["10.0.101.0/24", "10.0.102.0/24", "10.0.103.0/24"] # Choose  public subnet CIDRs accordingly
+
+  enable_nat_gateway = true # enable the nat_gateway for each of the private subnets. Alternatively we can use VPC endpoints if we have very few endpoints and/or high data transfer.
+  enable_vpn_gateway = false # In this project, we will not use the VPN Gateway.
+
+  # tags = {
+  #   Terraform = "true"
+  #   Environment = "prod"
+  # }
+}
+```
