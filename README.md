@@ -559,7 +559,7 @@ resource "aws_lb" "alb" {
   # internal           = false # optional
   load_balancer_type = "application" # type of load balancer - application or network
   security_groups    = [aws_security_group.alb.id]
-  subnets            = [module.vpc.public_subnets]
+  subnets            = module.vpc.public_subnets
 
   # enable_deletion_protection = true # If true, deletion of the load balancer will be disabled via the AWS API. This will prevent Terraform from deleting the load balancer. It may be troublesome to turn this on for production workloads as it will be difficult to change or switch the Load Balancer.
 
@@ -824,3 +824,67 @@ resource "aws_ecs_task_definition" "Django-API" {
   # }
 }
 ```
+
+#### Service
+
+"Connects" the cluster and the task. Defines which task will be run on which cluster and which load balancer will be used.
+
+See: https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/ecs_service
+
+In the `ECS.tf` file, add:
+
+```terraform
+resource "aws_ecs_service" "Django-APIService" {
+  name            = "Django-APIService"
+  cluster         = module.ecs.cluster_id # used to be ecs_cluster_id
+  task_definition = aws_ecs_task_definition.Django-API.arn # The task definition above
+  desired_count   = 3 # Places 1 in each AZ to improve reliability / availability
+  # iam_role        = aws_iam_role.foo.arn # As we defined at task definition, it is unnecessary
+  # depends_on      = [aws_iam_role_policy.foo] # Not necessary in our example project
+
+  # ordered_placement_strategy {
+  #   type  = "binpack"
+  #   field = "cpu"
+  # }
+
+  load_balancer {
+    target_group_arn = aws_lb_target_group.alb_target.arn # Go to ALB.tf to find and use the aws_alb_target_group
+    container_name   = "production" # The same name at task definition, container definitions
+    container_port   = 8000
+  }
+
+  # placement_constraints {
+  #   type       = "memberOf"
+  #   expression = "attribute:ecs.availability-zone in [us-west-2a, us-west-2b]"
+  # }
+
+  network_configuration { # As we are using Fargate, it is obligatory. Documentation: (Optional) Network configuration for the service. This parameter is required for task definitions that use the awsvpc network mode to receive their own Elastic Network Interface, and it is not supported for other network modes.
+    subnets          = module.vpc.private_subnets # See VPC module
+    security_groups  = [aws_security_group.privatenet.id, aws_security_group.vpc_endpoint_service.id] # See SecurityGroup.tf, Private Subnet security group
+  }
+
+  capacity_provider_strategy { # (Optional, but recommended use) Capacity provider strategies to use for the service. Can be one or more. These can be updated without destroying and recreating the service only if force_new_deployment = true and not changing from 0 capacity_provider_strategy blocks to greater than 0, or vice versa. Conflicts with launch_type.
+    capacity_provider = "FARGATE"
+    base              = 1 #(Optional) Number of tasks, at a minimum, to run on the specified capacity provider. Only one capacity provider in a capacity provider strategy can have a base defined. Default is 0.
+    weight            = 100 # (Required) Relative percentage of the total number of launched tasks that should use the specified capacity provider.
+  }
+}
+```
+
+## Deploying the application
+
+Open the Terminal, cd to the desired environment, then run the following command:
+
+```bash
+terraform init
+terraform apply
+```
+
+This will create all resources described on `.tf` files and deploy your Django API example Application.
+
+After a few minutes, you should be able to access your Django API through Load Balancer DNS provided by Terraform output. You can check if everything is working correctly by accessing the DNS_alb output link appending`:8000` to the end to specify the working port.
+
+Example:
+
+http://ECS-Django-1850422894.us-west-2.elb.amazonaws.com:8000
+

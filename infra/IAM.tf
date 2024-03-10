@@ -12,7 +12,7 @@ resource "aws_iam_role" "environment_role" {
         Sid    = ""
         Principal = {
           Service = ["ec2.amazonaws.com",
-                     "ecs-tasks.amazonaws.com"]
+                    "ecs-tasks.amazonaws.com"]
         }
       },
     ]
@@ -43,6 +43,10 @@ resource "aws_iam_role_policy" "ecs_ecr" {
         ]
         Effect   = "Allow"
         Resource = "*"
+      #   "Resource": [
+      #   "arn:aws:ecr:<region>:<account_id>:repository/<repository_name>", # Specific ECR repository pattern
+      #   "arn:aws:logs:<region>:<account_id>:log-group:/ecs/<cluster_name>/*" # Specific log group pattern
+      # ]
       },
     ]
   })
