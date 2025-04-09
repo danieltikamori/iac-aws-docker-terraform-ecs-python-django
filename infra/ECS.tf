@@ -33,6 +33,7 @@ module "ecs" {
 
 # cloud_watch_log_group_name = "/aws/ecs/aws-ec2": This setting specifies that logs will be sent to a CloudWatch Log Group named "/aws/ecs/aws-ec2". This is the default log group used by ECS for "Execute Command" actions if you don't override it.
 
+  default_capacity_provider_use_fargate = true // By default, the default capacity provider is FARGATE
   fargate_capacity_providers = {
     FARGATE = {
       default_capacity_provider_strategy = {
